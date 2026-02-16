@@ -116,11 +116,6 @@ def main():
             s = line.decode("ascii").strip()
         except:
             continue
-        
-        try:
-            s = line.decode("ascii").strip()
-        except:
-            continue
 
         print(s)
 
