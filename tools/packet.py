@@ -1,7 +1,6 @@
-# tools/packet.py
+
 import struct
 
-# CRC-8 (poly 0x07) simple implementation
 def crc8(data: bytes, poly=0x07, init=0x00):
     crc = init
     for b in data:
