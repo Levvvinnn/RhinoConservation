@@ -1,0 +1,31 @@
+# tools/test_packet.py
+from packet import pack_short, unpack_short
+import sys
+
+def test_roundtrip():
+    lat = -25.123456
+    lon = 31.987654
+    batt = 87
+    flags = 5
+    p = pack_short(lat, lon, batt, flags=flags)
+    out = unpack_short(p)
+    assert abs(out["lat"] - lat) < 1e-7
+    assert abs(out["lon"] - lon) < 1e-7
+    assert out["batt"] == batt
+    assert out["flags"] == flags
+    print("roundtrip OK")
+
+def test_crc_fail():
+    p = pack_short(0.0, 0.0, 50)
+    bad = bytearray(p)
+    bad[2] ^= 0xFF  # flip a byte
+    try:
+        unpack_short(bytes(bad))
+        print("ERROR: CRC not detected")
+        sys.exit(2)
+    except ValueError:
+        print("crc fail detected ok")
+
+if __name__ == "__main__":
+    test_roundtrip()
+    test_crc_fail()
