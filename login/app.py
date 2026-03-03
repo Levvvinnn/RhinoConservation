@@ -1,36 +1,9 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, flash
-from werkzeug.security import generate_password_hash, check_password_hash
-import sqlite3
-from pathlib import Path
-
-DB_PATH = Path("users.db")
-
-def init_db():
-    if not DB_PATH.exists():
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute("""
-            CREATE TABLE users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
-        conn.commit()
-        conn.close()
-
-def get_db_conn():
-    return sqlite3.connect(DB_PATH)
-
-app = Flask(__name__)
-app.secret_key = os.urandom(24)
-import os
 import secrets
 import hmac
 import hashlib
 import sqlite3
+import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 import smtplib
@@ -38,11 +11,15 @@ from email.message import EmailMessage
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Import the API blueprint and database initialization
+sys.path.insert(0, str(Path(__file__).parent.parent))
+import api
+import db as rhino_db
+
 DB_PATH = Path("users.db")
 
-
-def init_db():
-    # Create DB and required tables/columns if missing.
+def init_db_users():
+    """Initialize user authentication database."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     # users table (add phone column if missing)
@@ -87,7 +64,12 @@ app.secret_key = os.environ.get("FLASK_SECRET") or os.urandom(24)
 
 OTP_SECRET = os.environ.get("OTP_SECRET") or str(app.secret_key)
 
-init_db()
+# Initialize both user and rhino databases
+init_db_users()
+rhino_db.init_db()
+
+# Register the API blueprint for rhino tracking
+app.register_blueprint(api.api)
 @app.route("/")
 def index():
     if session.get("user_email"):
