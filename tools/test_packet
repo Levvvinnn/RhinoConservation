@@ -1,4 +1,3 @@
-# tools/test_packet.py
 from packet import pack_short, unpack_short
 import sys
 
