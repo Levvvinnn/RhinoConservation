@@ -1,0 +1,4 @@
+Flask>=2.0
+python-dotenv
+# Twilio optional (not used by default):
+# twilio

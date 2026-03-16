@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Verify OTP</title>
+</head>
+<body>
+
+<h2>Enter One-Time Code</h2>
+
+<form method="post">
+    <input type="text" name="code" placeholder="6-digit code" required maxlength="6"><br><br>
+    <button type="submit">Verify</button>
+</form>
+
+<p style="color:red">{{error}}</p>
+
+</body>
+</html>
