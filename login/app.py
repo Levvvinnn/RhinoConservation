@@ -20,38 +20,36 @@ DB_PATH = Path("users.db")
 
 def init_db_users():
     """Initialize user authentication database."""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    # users table (add phone column if missing)
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            phone TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    with sqlite3.connect(DB_PATH) as conn:
+        c = conn.cursor()
+        # users table (add phone column if missing)
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                phone TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+            """
         )
-        """
-    )
-    # otps table for one-time codes
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS otps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            code_hash TEXT NOT NULL,
-            sent_via TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            expires_at DATETIME,
-            used INTEGER DEFAULT 0,
-            attempts INTEGER DEFAULT 0,
-            FOREIGN KEY(user_id) REFERENCES users(id)
+        # otps table for one-time codes
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS otps (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                code_hash TEXT NOT NULL,
+                sent_via TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME,
+                used INTEGER DEFAULT 0,
+                attempts INTEGER DEFAULT 0,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
         )
-        """
-    )
-    conn.commit()
-    conn.close()
 
 
 def get_db_conn():
@@ -152,11 +150,10 @@ def _hash_otp(code: str) -> str:
 
 
 def _get_user_by_email(email):
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute("SELECT id, email, phone FROM users WHERE email = ?", (email,))
-    row = cur.fetchone()
-    conn.close()
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id, email, phone FROM users WHERE email = ?", (email,))
+        row = cur.fetchone()
     if not row:
         return None
     return {"id": row[0], "email": row[1], "phone": row[2]}
@@ -167,14 +164,12 @@ def _create_and_send_otp(user_id, email, phone=None, via='email'):
     code_hash = _hash_otp(code)
     created = datetime.utcnow()
     expires = created + timedelta(minutes=5)
-    conn = get_db_conn()
-    cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO otps (user_id, code_hash, sent_via, created_at, expires_at, used, attempts) VALUES (?, ?, ?, ?, ?, 0, 0)",
-        (user_id, code_hash, via, created.isoformat(), expires.isoformat()),
-    )
-    conn.commit()
-    conn.close()
+    with get_db_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO otps (user_id, code_hash, sent_via, created_at, expires_at, used, attempts) VALUES (?, ?, ?, ?, ?, 0, 0)",
+            (user_id, code_hash, via, created.isoformat(), expires.isoformat()),
+        )
     # Delivery
     subject = "Your RhinoTracker one-time code"
     body = f"Your one-time login code is: {code}\nIt expires in 5 minutes."
@@ -230,47 +225,47 @@ def verify_otp():
         if not user:
             error = 'User not found.'
             return render_template('otp_verify.html', error=error)
-        conn = get_db_conn()
-        cur = conn.cursor()
-        cur.execute("SELECT id, code_hash, expires_at, used, attempts FROM otps WHERE user_id = ? ORDER BY created_at DESC LIMIT 1", (user['id'],))
-        row = cur.fetchone()
-        if not row:
-            error = 'No OTP found. Request a new code.'
-            conn.close()
-            return render_template('otp_verify.html', error=error)
-        otp_id, code_hash, expires_at, used, attempts = row
-        if used:
-            error = 'This code has already been used. Request a new code.'
-            conn.close()
-            return render_template('otp_verify.html', error=error)
-        # check expiry
-        if expires_at:
-            exp = datetime.fromisoformat(expires_at)
-            if datetime.utcnow() > exp:
-                error = 'Code expired. Request a new one.'
-                conn.close()
+        with get_db_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT id, code_hash, expires_at, used, attempts FROM otps WHERE user_id = ? ORDER BY created_at DESC LIMIT 1",
+                (user['id'],),
+            )
+            row = cur.fetchone()
+
+            if not row:
+                error = 'No OTP found. Request a new code.'
                 return render_template('otp_verify.html', error=error)
-        # limit attempts
-        if attempts >= 5:
-            error = 'Too many attempts. Request a new code.'
-            conn.close()
-            return render_template('otp_verify.html', error=error)
-        # verify
-        if hmac.compare_digest(code_hash, _hash_otp(code)):
-            # success
-            cur.execute("UPDATE otps SET used = 1 WHERE id = ?", (otp_id,))
-            conn.commit()
-            conn.close()
-            session.pop('pending_user_email', None)
-            session['user_email'] = pending
-            flash('Logged in successfully.')
-            return redirect(url_for('index'))
-        else:
-            # increment attempts
-            cur.execute("UPDATE otps SET attempts = attempts + 1 WHERE id = ?", (otp_id,))
-            conn.commit()
-            conn.close()
-            error = 'Invalid code.'
+
+            otp_id, code_hash, expires_at, used, attempts = row
+            if used:
+                error = 'This code has already been used. Request a new code.'
+                return render_template('otp_verify.html', error=error)
+
+            # check expiry
+            if expires_at:
+                exp = datetime.fromisoformat(expires_at)
+                if datetime.utcnow() > exp:
+                    error = 'Code expired. Request a new one.'
+                    return render_template('otp_verify.html', error=error)
+
+            # limit attempts
+            if attempts >= 5:
+                error = 'Too many attempts. Request a new code.'
+                return render_template('otp_verify.html', error=error)
+
+            # verify
+            if hmac.compare_digest(code_hash, _hash_otp(code)):
+                # success
+                cur.execute("UPDATE otps SET used = 1 WHERE id = ?", (otp_id,))
+                session.pop('pending_user_email', None)
+                session['user_email'] = pending
+                flash('Logged in successfully.')
+                return redirect(url_for('index'))
+            else:
+                # increment attempts
+                cur.execute("UPDATE otps SET attempts = attempts + 1 WHERE id = ?", (otp_id,))
+                error = 'Invalid code.'
     return render_template('otp_verify.html', error=error)
 
 

@@ -1,8 +1,24 @@
 from flask import Blueprint, jsonify, request
 from datetime import datetime
+from typing import Any, Dict, Tuple
+
 import db
+from models import RhinoStatus
 
 api = Blueprint("api", __name__, url_prefix="/api")
+
+
+def _error(message: str, status: int = 400) -> Tuple[Any, int]:
+    """Uniform error response."""
+    return jsonify({"success": False, "error": message}), status
+
+
+def _get_json() -> Dict:
+    """Safely parse JSON payload, returning an empty dict on invalid input."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return {}
+    return data
 
 
 # ============ RHINO ENDPOINTS ============
@@ -43,23 +59,21 @@ def create_rhino():
         "status": "active" (optional)
     }
     """
-    try:
-        data = request.get_json()
+    data = _get_json()
 
-        # Validate required fields
-        required = ["id", "name", "species", "collar_id"]
-        if not all(k in data for k in required):
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
+    required = ["id", "name", "species", "collar_id"]
+    if not all(data.get(k) for k in required):
+        return _error("Missing required fields", 400)
 
-        status = data.get("status", "active")
-        success = db.create_rhino(data["id"], data["name"], data["species"], data["collar_id"], status)
+    status = data.get("status", "active")
+    if status not in {s.value for s in RhinoStatus}:
+        return _error(f"Invalid status: {status}", 400)
 
-        if not success:
-            return jsonify({"success": False, "error": "Rhino ID or collar_id already exists"}), 409
+    success = db.create_rhino(data["id"], data["name"], data["species"], data["collar_id"], status)
+    if not success:
+        return _error("Rhino ID or collar_id already exists", 409)
 
-        return jsonify({"success": True, "message": "Rhino created"}), 201
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    return jsonify({"success": True, "message": "Rhino created"}), 201
 
 
 @api.route("/rhinos/<rhino_id>", methods=["PUT"])
@@ -73,18 +87,20 @@ def update_rhino(rhino_id):
         "health_notes": "Some notes" (optional)
     }
     """
-    try:
-        data = request.get_json()
-        success = db.update_rhino(
-            rhino_id, name=data.get("name"), status=data.get("status"), health_notes=data.get("health_notes")
-        )
+    data = _get_json()
 
-        if not success:
-            return jsonify({"success": False, "error": "Failed to update rhino"}), 400
+    status = data.get("status")
+    if status and status not in {s.value for s in RhinoStatus}:
+        return _error(f"Invalid status: {status}", 400)
 
-        return jsonify({"success": True, "message": "Rhino updated"}), 200
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    success = db.update_rhino(
+        rhino_id, name=data.get("name"), status=status, health_notes=data.get("health_notes")
+    )
+
+    if not success:
+        return _error("Failed to update rhino", 400)
+
+    return jsonify({"success": True, "message": "Rhino updated"}), 200
 
 
 @api.route("/rhinos/<rhino_id>", methods=["DELETE"])
@@ -115,28 +131,49 @@ def add_location(rhino_id):
         "sats": 12 (optional)
     }
     """
+    data = _get_json()
+
+    if "latitude" not in data or "longitude" not in data:
+        return _error("latitude and longitude required", 400)
+
     try:
-        data = request.get_json()
+        latitude = float(data["latitude"])
+        longitude = float(data["longitude"])
+    except (TypeError, ValueError):
+        return _error("latitude and longitude must be numeric", 400)
 
-        # Validate required fields
-        if "latitude" not in data or "longitude" not in data:
-            return jsonify({"success": False, "error": "latitude and longitude required"}), 400
+    altitude = data.get("altitude")
+    accuracy = data.get("accuracy")
+    sats = data.get("sats")
 
-        success = db.add_location(
-            rhino_id,
-            data["latitude"],
-            data["longitude"],
-            altitude=data.get("altitude"),
-            accuracy=data.get("accuracy"),
-            sats=data.get("sats"),
-        )
+    try:
+        altitude = float(altitude) if altitude is not None else None
+    except (TypeError, ValueError):
+        return _error("altitude must be numeric", 400)
 
-        if not success:
-            return jsonify({"success": False, "error": "Failed to add location"}), 400
+    try:
+        accuracy = float(accuracy) if accuracy is not None else None
+    except (TypeError, ValueError):
+        return _error("accuracy must be numeric", 400)
 
-        return jsonify({"success": True, "message": "Location added"}), 201
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    try:
+        sats = int(sats) if sats is not None else None
+    except (TypeError, ValueError):
+        return _error("sats must be an integer", 400)
+
+    success = db.add_location(
+        rhino_id,
+        latitude,
+        longitude,
+        altitude=altitude,
+        accuracy=accuracy,
+        sats=sats,
+    )
+
+    if not success:
+        return _error("Failed to add location", 400)
+
+    return jsonify({"success": True, "message": "Location added"}), 201
 
 
 @api.route("/rhinos/<rhino_id>/location/latest", methods=["GET"])
@@ -160,10 +197,13 @@ def get_location_history(rhino_id):
     """
     try:
         limit = request.args.get("limit", 100, type=int)
+        if limit <= 0 or limit > 1000:
+            return _error("limit must be between 1 and 1000", 400)
+
         locations = db.get_location_history(rhino_id, limit)
         return jsonify({"success": True, "data": locations}), 200
     except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+        return _error("Internal server error", 500)
 
 
 @api.route("/locations/latest", methods=["GET"])
