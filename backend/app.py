@@ -3,20 +3,18 @@ import secrets
 import hmac
 import hashlib
 import sqlite3
-import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 import smtplib
 from email.message import EmailMessage
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Import the API blueprint and database initialization
-sys.path.insert(0, str(Path(__file__).parent.parent))
 import api
 import db as rhino_db
 
-DB_PATH = Path("users.db")
+DB_PATH = Path(__file__).parent / "users.db"
 
 def init_db_users():
     """Initialize user authentication database."""
@@ -268,6 +266,40 @@ def verify_otp():
                 error = 'Invalid code.'
     return render_template('otp_verify.html', error=error)
 
+@api.route("/telemetry", methods=["POST"])
+def receive_telemetry():
+    try:
+        data = request.get_json()
+
+        required = ["rhino_id", "latitude", "longitude", "battery", "flags"]
+        if not all(k in data for k in required):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        rhino_id = data["rhino_id"]
+        latitude = data["latitude"]
+        longitude = data["longitude"]
+        battery = data["battery"]
+        flags = data["flags"]
+
+        db.add_location(
+            rhino_id,
+            latitude,
+            longitude,
+            altitude=data.get("altitude"),
+            accuracy=data.get("accuracy"),
+            sats=data.get("sats"),
+        )
+
+        if battery < 20:
+            db.create_alert(rhino_id, "low_battery", f"Battery low: {battery}%")
+
+        if flags & 0x04:
+            db.create_alert(rhino_id, "distress", "Alert flag triggered")
+
+        return jsonify({"success": True, "message": "Telemetry saved"}), 201
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)

@@ -1,16 +1,53 @@
-# React + Vite
+# Rhino Conservation
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This repository contains three focused areas:
 
-Currently, two official plugins are available:
+- `backend/` — Python Flask API and authentication server
+- `frontend/` — React + Vite web application
+- `device/` — device firmware and tooling for GPS/telemetry hardware
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Project structure
 
-## React Compiler
+- `backend/`
+  - `app.py` — Flask backend application entrypoint
+  - `api.py` — Rhino tracking API routes
+  - `db.py` — SQLite database layer
+  - `models.py` — shared dataclasses and enums
+  - `requirements.txt` — Python dependencies
+  - `templates/` — Flask HTML templates
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- `frontend/`
+  - `package.json` — frontend package definition
+  - `vite.config.js` — Vite configuration
+  - `src/` — React source files
 
-## Expanding the ESLint configuration
+- `device/`
+  - `main.py` — micropython device entrypoint
+  - `gps_lora.py`, `gps_wifi.py` — device networking scripts
+  - `tools/` — helper scripts for packet tests and decoding
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Local setup
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+.venv/Scripts/activate
+pip install -r requirements.txt
+python app.py
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+## Notes
+
+- Backend SQLite databases are stored in `backend/`.
+- Frontend assets are contained entirely within `frontend/`.
+- Device and hardware scripts live under `device/`.

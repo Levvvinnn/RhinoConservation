@@ -1,0 +1,14 @@
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  background: #f7f8fb;
+  color: #111827;
+}
+
+h2 {
+  margin: 0 0 16px;
+}
