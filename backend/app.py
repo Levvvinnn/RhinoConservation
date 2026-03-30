@@ -266,7 +266,7 @@ def verify_otp():
                 error = 'Invalid code.'
     return render_template('otp_verify.html', error=error)
 
-@api.route("/telemetry", methods=["POST"])
+@app.route("/telemetry", methods=["POST"])
 def receive_telemetry():
     try:
         data = request.get_json()
@@ -281,7 +281,7 @@ def receive_telemetry():
         battery = data["battery"]
         flags = data["flags"]
 
-        db.add_location(
+        rhino_db.add_location(
             rhino_id,
             latitude,
             longitude,
@@ -291,10 +291,10 @@ def receive_telemetry():
         )
 
         if battery < 20:
-            db.create_alert(rhino_id, "low_battery", f"Battery low: {battery}%")
+            rhino_db.create_alert(rhino_id, "low_battery", f"Battery low: {battery}%")
 
         if flags & 0x04:
-            db.create_alert(rhino_id, "distress", "Alert flag triggered")
+            rhino_db.create_alert(rhino_id, "distress", "Alert flag triggered")
 
         return jsonify({"success": True, "message": "Telemetry saved"}), 201
 

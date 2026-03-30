@@ -1,0 +1,47 @@
+[
+  {
+    "id": "1",
+    "rhino_id": "RHINO-001",
+    "latitude": -1.2921,
+    "longitude": 36.8219,
+    "battery": 92,
+    "flags": 1,
+    "timestamp": "2026-03-30T10:00:00.000Z"
+  },
+  {
+    "id": "2",
+    "rhino_id": "RHINO-002",
+    "latitude": -1.3102,
+    "longitude": 36.8093,
+    "battery": 78,
+    "flags": 2,
+    "timestamp": "2026-03-30T10:00:00.000Z"
+  },
+  {
+    "id": "3",
+    "rhino_id": "RHINO-003",
+    "latitude": -1.2985,
+    "longitude": 36.8327,
+    "battery": 45,
+    "flags": 1,
+    "timestamp": "2026-03-30T10:00:00.000Z"
+  },
+  {
+    "id": "4",
+    "rhino_id": "RHINO-004",
+    "latitude": -1.3058,
+    "longitude": 36.8339,
+    "battery": 18,
+    "flags": 4,
+    "timestamp": "2026-03-30T10:00:00.000Z"
+  },
+  {
+    "id": "5",
+    "rhino_id": "RHINO-005",
+    "latitude": -1.2864,
+    "longitude": 36.8256,
+    "battery": 61,
+    "flags": 2,
+    "timestamp": "2026-03-30T10:00:00.000Z"
+  }
+]
