@@ -32,7 +32,6 @@ def init_db():
     with db_conn() as conn:
         c = conn.cursor()
 
-        # Users table (for authentication)
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -45,7 +44,6 @@ def init_db():
         """
         )
 
-        # Rhinos table
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS rhinos (
@@ -60,7 +58,6 @@ def init_db():
         """
         )
 
-        # GPS locations history
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS locations (
@@ -77,7 +74,6 @@ def init_db():
         """
         )
 
-        # Alerts/incidents
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS alerts (
@@ -92,13 +88,10 @@ def init_db():
         """
         )
 
-        # Create indexes for faster queries
         c.execute("CREATE INDEX IF NOT EXISTS idx_locations_rhino_id ON locations(rhino_id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_locations_timestamp ON locations(timestamp)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_alerts_rhino_id ON alerts(rhino_id)")
 
-
-# ============ RHINO OPERATIONS ============
 
 
 def create_rhino(rhino_id: str, name: str, species: str, collar_id: str, status: str = "active") -> bool:
@@ -170,7 +163,6 @@ def delete_rhino(rhino_id: str) -> bool:
     return update_rhino(rhino_id, status="inactive")
 
 
-# ============ LOCATION OPERATIONS ============
 
 
 def add_location(rhino_id: str, latitude: float, longitude: float, altitude: float = None, accuracy: float = None, sats: int = None) -> bool:
@@ -241,7 +233,6 @@ def get_all_latest_locations() -> List[Dict]:
     return [dict(row) for row in rows]
 
 
-# ============ ALERT OPERATIONS ============
 
 
 def create_alert(rhino_id: str, alert_type: str, message: str) -> bool:
