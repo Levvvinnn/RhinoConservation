@@ -10,7 +10,6 @@ from email.message import EmailMessage
 from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Import the API blueprint and database initialization
 import api
 import db as rhino_db
 
@@ -20,7 +19,6 @@ def init_db_users():
     """Initialize user authentication database."""
     with sqlite3.connect(DB_PATH) as conn:
         c = conn.cursor()
-        # users table (add phone column if missing)
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS users (
@@ -32,7 +30,6 @@ def init_db_users():
             )
             """
         )
-        # otps table for one-time codes
         c.execute(
             """
             CREATE TABLE IF NOT EXISTS otps (
@@ -60,11 +57,9 @@ app.secret_key = os.environ.get("FLASK_SECRET") or os.urandom(24)
 
 OTP_SECRET = os.environ.get("OTP_SECRET") or str(app.secret_key)
 
-# Initialize both user and rhino databases
 init_db_users()
 rhino_db.init_db()
 
-# Register the API blueprint for rhino tracking
 app.register_blueprint(api.api)
 @app.route("/")
 def index():
@@ -136,7 +131,6 @@ def logout():
     return redirect(url_for("login"))
 
 
-# --- OTP helpers and routes ---
 def generate_numeric_otp(length=6):
     max_n = 10 ** length
     code = str(secrets.randbelow(max_n)).zfill(length)
@@ -168,10 +162,8 @@ def _create_and_send_otp(user_id, email, phone=None, via='email'):
             "INSERT INTO otps (user_id, code_hash, sent_via, created_at, expires_at, used, attempts) VALUES (?, ?, ?, ?, ?, 0, 0)",
             (user_id, code_hash, via, created.isoformat(), expires.isoformat()),
         )
-    # Delivery
     subject = "Your RhinoTracker one-time code"
     body = f"Your one-time login code is: {code}\nIt expires in 5 minutes."
-    # Try sending via email if configured, otherwise print to console for dev/testing
     send_email(email, subject, body)
 
 
@@ -203,7 +195,6 @@ def send_email(to_email: str, subject: str, body: str):
         except Exception as e:
             print("Error sending email:", e)
             print("Falling back to printing OTP to console.")
-    # Fallback for local testing: print
     print("--- OTP (dev) ---")
     print(body)
     print("-----------------")
@@ -247,21 +238,17 @@ def verify_otp():
                     error = 'Code expired. Request a new one.'
                     return render_template('otp_verify.html', error=error)
 
-            # limit attempts
             if attempts >= 5:
                 error = 'Too many attempts. Request a new code.'
                 return render_template('otp_verify.html', error=error)
 
-            # verify
             if hmac.compare_digest(code_hash, _hash_otp(code)):
-                # success
                 cur.execute("UPDATE otps SET used = 1 WHERE id = ?", (otp_id,))
                 session.pop('pending_user_email', None)
                 session['user_email'] = pending
                 flash('Logged in successfully.')
                 return redirect(url_for('index'))
             else:
-                # increment attempts
                 cur.execute("UPDATE otps SET attempts = attempts + 1 WHERE id = ?", (otp_id,))
                 error = 'Invalid code.'
     return render_template('otp_verify.html', error=error)

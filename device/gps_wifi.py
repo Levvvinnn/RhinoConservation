@@ -3,13 +3,11 @@ import network
 import urequests
 import time
 
-# ------------ CHANGE THESE 3 -------------
 SSID = "Riya's iPhone"          # your WiFi / hotspot name
 PASSWORD = "yourpassword"  # your WiFi password
 WEBHOOK_URL = "https://webhook.site/4201e1c0-4b12-4e73-a440-772aa310e9df"  # your webhook URL
-# -----------------------------------------
 
-SEND_PERIOD_S = 10  # seconds between uploads
+SEND_PERIOD_S = 10
 
 LED = Pin("LED", Pin.OUT)
 uart = UART(1, baudrate=9600, tx=Pin(4), rx=Pin(5), timeout=1000)
