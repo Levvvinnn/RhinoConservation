@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import smtplib
 from email.message import EmailMessage
-from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash
+from flask import Flask, jsonify, render_template, request, redirect, url_for, session, flash, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import api
@@ -61,6 +61,33 @@ init_db_users()
 rhino_db.init_db()
 
 app.register_blueprint(api.api)
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
+    return response
+
+@app.route("/api/login-status")
+def login_status():
+    if session.get("user_email"):
+        return jsonify({"logged_in": True, "user": session["user_email"]})
+    return jsonify({"logged_in": False})
+
+@app.route("/app")
+def serve_frontend():
+    return send_from_directory("../frontend/dist", "index.html")
+
+@app.route("/app/<path:path>")
+def serve_static(path):
+    return send_from_directory("../frontend/dist", path)
+
+@app.route("/assets/<path:path>")
+def serve_assets(path):
+    return send_from_directory("../frontend/dist/assets", path)
+
 @app.route("/")
 def index():
     if session.get("user_email"):
@@ -110,15 +137,9 @@ def login():
         else:
             pw_hash = row[0]
             if check_password_hash(pw_hash, password):
-                # password OK — generate and send OTP, then require verification
-                user = _get_user_by_email(email)
-                if not user:
-                    error = "User not found."
-                else:
-                    _create_and_send_otp(user['id'], user['email'], user.get('phone'))
-                    session['pending_user_email'] = email
-                    flash("OTP sent — please check your email (or console).")
-                    return redirect(url_for('verify_otp'))
+                session['user_email'] = email
+                flash('Logged in successfully.')
+                return redirect('/app')
             else:
                 error = "Invalid email or password."
     return render_template("login.html", error=error)

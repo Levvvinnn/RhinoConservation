@@ -270,13 +270,13 @@ export default function App() {
       <div style={{ maxWidth: 980, margin: "0 auto", display: "grid", gap: 24 }}>
         <section>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h1>Rhino Conservation Prototype</h1>
+            <h1>Rhino Conservation Dashboard</h1>
             <button onClick={() => setIsLoggedIn(false)} style={{ padding: "8px 16px", background: "#dc2626", color: "white", border: "none", borderRadius: 8, cursor: "pointer" }}>
               Logout
             </button>
           </div>
           <p style={{ color: "#4b5563" }}>
-            Enter a new rhino or save GPS location data. The backend stores the data in SQLite.
+            Real-time monitoring of rhino movements and conservation data.
           </p>
         </section>
 
@@ -286,9 +286,53 @@ export default function App() {
           </section>
         ) : null}
 
+        {/* Dashboard Stats */}
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+          <div style={{ padding: 18, border: "1px solid #e5e7eb", borderRadius: 12, background: "#f0fdf4" }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#15803d" }}>{rhinos.length}</div>
+            <div style={{ fontSize: 14, color: "#4b5563", marginTop: 6 }}>Rhinos Tracked</div>
+          </div>
+          <div style={{ padding: 18, border: "1px solid #e5e7eb", borderRadius: 12, background: "#f5f3ff" }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#7c3aed" }}>Locations</div>
+            <div style={{ fontSize: 14, color: "#4b5563", marginTop: 6 }}>GPS Data Recorded</div>
+          </div>
+          <div style={{ padding: 18, border: "1px solid #e5e7eb", borderRadius: 12, background: "#fef3c7" }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: "#b45309" }}>Active</div>
+            <div style={{ fontSize: 14, color: "#4b5563", marginTop: 6 }}>Monitoring Status</div>
+          </div>
+        </section>
+
+        {/* Tracked Rhinos with Latest Coordinates */}
+        <section style={{ padding: 18, border: "1px solid #e5e7eb", borderRadius: 12, background: "#ffffff" }}>
+          <h2 style={{ marginTop: 0 }}>Tracked Rhinos</h2>
+          {rhinos.length ? (
+            <div style={{ display: "grid", gap: 12 }}>
+              {rhinos.map((rhino) => (
+                <div key={rhino.id} style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 10, background: "#f8fafc" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                    <div>
+                      <strong style={{ fontSize: 16 }}>{rhino.name}</strong> ({rhino.id})
+                      <div style={{ color: "#475569", marginTop: 4, fontSize: 13 }}>
+                        Species: {rhino.species} · Collar: {rhino.collar_id}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>● Active</div>
+                  </div>
+                  <div style={{ marginTop: 12, padding: 10, background: "#f0fdfa", borderRadius: 6, fontSize: 13 }}>
+                    <div>📍 Latest Position: <strong>Awaiting first location</strong></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ color: "#6b7280", margin: 0 }}>No rhinos tracked yet. Add one below to start monitoring.</p>
+          )}
+        </section>
+
+        {/* Forms */}
         <section style={{ display: "grid", gap: 24 }}>
           <div style={{ padding: 18, border: "1px solid #e5e7eb", borderRadius: 12, background: "#ffffff" }}>
-            <h2 style={{ marginTop: 0 }}>Create a new rhino</h2>
+            <h2 style={{ marginTop: 0 }}>Register New Rhino</h2>
             <form onSubmit={handleRhinoSubmit} style={{ display: "grid", gap: 14 }}>
               {[
                 { label: "Rhino ID", name: "id", placeholder: "RHINO001" },
@@ -308,16 +352,16 @@ export default function App() {
                 </label>
               ))}
               <button type="submit" style={{ padding: "12px 18px", background: "#2563eb", color: "white", border: "none", borderRadius: 8, cursor: "pointer" }}>
-                Save Rhino
+                Add Rhino to Monitoring
               </button>
             </form>
           </div>
 
           <div style={{ padding: 18, border: "1px solid #e5e7eb", borderRadius: 12, background: "#ffffff" }}>
-            <h2 style={{ marginTop: 0 }}>Save a location</h2>
+            <h2 style={{ marginTop: 0 }}>Record GPS Location</h2>
             <form onSubmit={handleLocationSubmit} style={{ display: "grid", gap: 14 }}>
               <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ fontWeight: 600 }}>Rhino</span>
+                <span style={{ fontWeight: 600 }}>Select Rhino</span>
                 <select
                   value={locationForm.rhino_id}
                   onChange={(event) => updateLocationField("rhino_id", event.target.value)}
@@ -335,8 +379,8 @@ export default function App() {
               {[
                 { label: "Latitude", name: "latitude" },
                 { label: "Longitude", name: "longitude" },
-                { label: "Altitude", name: "altitude" },
-                { label: "Accuracy", name: "accuracy" },
+                { label: "Altitude (m)", name: "altitude" },
+                { label: "Accuracy (m)", name: "accuracy" },
                 { label: "Satellites", name: "sats" },
               ].map(({ label, name }) => (
                 <label key={name} style={{ display: "grid", gap: 6 }}>
@@ -355,28 +399,10 @@ export default function App() {
                 disabled={!rhinos.length}
                 style={{ padding: "12px 18px", background: rhinos.length ? "#16a34a" : "#94a3b8", color: "white", border: "none", borderRadius: 8, cursor: rhinos.length ? "pointer" : "not-allowed" }}
               >
-                Save Location
+                Save Location Data
               </button>
             </form>
           </div>
-        </section>
-
-        <section style={{ padding: 18, border: "1px solid #e5e7eb", borderRadius: 12, background: "#ffffff" }}>
-          <h2 style={{ marginTop: 0 }}>Saved rhinos</h2>
-          {rhinos.length ? (
-            <div style={{ display: "grid", gap: 12 }}>
-              {rhinos.map((rhino) => (
-                <div key={rhino.id} style={{ padding: 14, border: "1px solid #e5e7eb", borderRadius: 10, background: "#f8fafc" }}>
-                  <strong>{rhino.id}</strong> — {rhino.name}
-                  <div style={{ color: "#475569", marginTop: 6 }}>
-                    Species: {rhino.species} · Collar: {rhino.collar_id} · Status: {rhino.status}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p style={{ color: "#6b7280", margin: 0 }}>No saved rhinos yet. Add one above to store it in SQLite.</p>
-          )}
         </section>
       </div>
     </main>
