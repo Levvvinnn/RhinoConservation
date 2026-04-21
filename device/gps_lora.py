@@ -1,8 +1,10 @@
 from machine import UART, Pin
 import time
+import json
 
 SEND_PERIOD_S = 10  # seconds between uploads
 LED = Pin("LED", Pin.OUT)
+DEBUG = True  # Set to False to disable print statements
 
 # LoRa UART settings
 LORA_UART_ID = 0
@@ -15,6 +17,17 @@ gps_uart = UART(1, baudrate=9600, tx=Pin(4), rx=Pin(5), timeout=1000)
 lora = UART(LORA_UART_ID, baudrate=LORA_BAUD, tx=Pin(LORA_TX_PIN), rx=Pin(LORA_RX_PIN), timeout=1000)
 
 def dmm_to_deg(dmm, is_lat, hemi):
+    """
+    Convert degrees-minutes format to decimal degrees.
+    
+    Args:
+        dmm (str): Degrees and minutes as string (e.g., "1234.56")
+        is_lat (bool): True for latitude, False for longitude
+        hemi (str): Hemisphere ("N", "S", "E", "W")
+    
+    Returns:
+        float or None: Decimal degrees or None if invalid
+    """
     if not dmm or not hemi:
         return None
     try:
@@ -29,6 +42,15 @@ def dmm_to_deg(dmm, is_lat, hemi):
         return None
 
 def parse_gga(sentence):
+    """
+    Parse GPGGA NMEA sentence for GPS data.
+    
+    Args:
+        sentence (str): NMEA sentence starting with $GPGGA
+    
+    Returns:
+        dict or None: Parsed GPS data or None if invalid/no fix
+    """
     parts = sentence.split(',')
     if len(parts) < 10:
         return None
@@ -50,23 +72,51 @@ def parse_gga(sentence):
     }
 
 def format_payload_for_lora(lat, lon, extra=None):
+    """
+    Format GPS data as JSON payload for LoRa transmission.
+    
+    Args:
+        lat (float): Latitude
+        lon (float): Longitude
+        extra (dict): Additional data (sats, hdop, alt_m)
+    
+    Returns:
+        str: JSON string payload
+    """
     if extra is None:
         extra = {}
-    sats = extra.get("sats", "")
-    hdop = extra.get("hdop", "")
-    alt = extra.get("alt_m", "")
-    return "{:.6f},{:.6f},{},{},{}\n".format(lat, lon, sats or "", hdop or "", alt or "")
+    payload = {
+        "timestamp": time.time(),
+        "lat": lat,
+        "lon": lon,
+        "sats": extra.get("sats", ""),
+        "hdop": extra.get("hdop", ""),
+        "alt_m": extra.get("alt_m", "")
+    }
+    return json.dumps(payload) + "\n"
 
 def send_lora(payload_str):
+    """
+    Send payload via LoRa UART.
+    
+    Args:
+        payload_str (str): Data to send
+    """
     try:
-        print("LoRa send:", payload_str.strip())
+        if DEBUG:
+            print("LoRa send:", payload_str.strip())
         lora.write(payload_str.encode("utf-8"))
     except Exception as e:
-        print("LoRa send error:", e)
+        if DEBUG:
+            print("LoRa send error:", e)
 
 def main():
+    """
+    Main loop: Read GPS data, parse GPGGA, send via LoRa periodically.
+    """
     last_send = 0
-    print("Starting GPS loop (COMM_MODE = LoRa)")
+    if DEBUG:
+        print("Starting GPS loop (COMM_MODE = LoRa)")
     while True:
         line = gps_uart.readline()
         if not line:
@@ -77,14 +127,16 @@ def main():
         except:
             continue
 
-        print(s) 
+        if DEBUG:
+            print(s)
 
         if s.startswith("$GPGGA"):
             data = parse_gga(s)
             if data:
                 lat = data["lat"]
                 lon = data["lon"]
-                print("GPS FIX:", lat, lon)
+                if DEBUG:
+                    print("GPS FIX:", lat, lon)
                 now = time.time()
                 if now - last_send >= SEND_PERIOD_S:
                     payload = format_payload_for_lora(lat, lon, {
@@ -94,9 +146,8 @@ def main():
                     })
                     send_lora(payload)
                     last_send = now
+                    LED.toggle()  # Heartbeat on successful send
 
-        # little heartbeat so you know it's alive
-        LED.toggle()
         time.sleep(0.5)
 
 if __name__ == "__main__":
